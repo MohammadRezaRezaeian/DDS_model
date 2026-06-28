@@ -1,0 +1,32 @@
+{
+    "global_params": {
+        "mt5_path": "C:\\Program Files\\WM Markets MT5 Terminal\\terminal64.exe",
+        "symbols_file": "symbols.xlsx",
+        "history_years": 10,
+        "export_dir": "dds_outputs"
+    },
+    "learning_params": {
+        "warmUp" : 1000,
+        "split_ratio": 0.95,
+        "N_epochs": 20,
+        "chunk_size": 100,
+        "itteration_method": "sequential",
+        "future_days": 60
+    },
+    "model_params": {
+        "model_name": "BayesianTensor",
+        "metric_name": "MSE",
+        "optimizer_name": "KalmanMomentum",
+        "params" : {
+            "lag_depth": 20,
+            "Horizon" : 10,
+            "momentum_beta": 0.9,
+            "ridge_penalty": 1.0
+        }
+    },
+    "plot_params": {
+        "save_png": true,
+        "show_plots": false,
+        "export_excel": true
+    }
+}

@@ -1,0 +1,8 @@
+__pycache__/*
+.vacode/*
+metric/__pycache__/*
+model/__pycache__/*
+optimizer/__pycache__/*
+
+dds_output/*
+symbols.xlsx
