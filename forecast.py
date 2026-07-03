@@ -11,7 +11,7 @@ class PriceResultsReporter:
         os.makedirs(self.excel_dir, exist_ok=True)
         os.makedirs(self.plot_dir, exist_ok=True)
 
-    def _convert_to_real_prices(self, start_idx, end_idx, dates, preds_std, raw_prices, rolling_means, rolling_stds, is_autoregressive=False):
+    def _convert_to_real_prices(self, start_idx, end_idx, dates, preds_returns, raw_prices, is_autoregressive=False):
         reconstructed_prices = []
         current_auto_price = None
         
@@ -20,46 +20,38 @@ class PriceResultsReporter:
             current_auto_price = raw_prices.loc[prev_date].values
 
         target_len = end_idx - start_idx
-        actual_len = len(preds_std)
+        actual_len = len(preds_returns)
         loop_len = min(target_len, actual_len)
 
         for i in range(loop_len):
             t = start_idx + i
-            date = dates[t]
             prev_date = dates[t - 1]
             
-            mu = rolling_means[date].values
-            sigma = rolling_stds[date].values
-            
             # ---------------------------------------------------------
-            # FIX: Bulletproof Dimensionality Slicing
+            # Bulletproof Dimensionality Slicing
             # ---------------------------------------------------------
-            pred_arr = np.array(preds_std[i])
+            pred_arr = np.array(preds_returns[i])
             
-            # 1. Strip away extra batch/list wrappers (e.g. from (1, 20, 58) -> (20, 58))
             while pred_arr.ndim > 2:
                 pred_arr = pred_arr[0]
                 
-            # 2. Slice the Horizon dimension to take strictly 1-step ahead -> (58,)
             if pred_arr.ndim == 2:
                 pred_arr = pred_arr[0] 
                 
-            pred_log_return = (pred_arr * sigma) + mu
-            
+            # NEW MATH: P_t = P_{t-1} * (1 + Simple_Return)
             if is_autoregressive:
-                pred_price = current_auto_price * np.exp(pred_log_return)
+                pred_price = current_auto_price * (1.0 + pred_arr)
                 current_auto_price = pred_price 
             else:
                 prev_real_price = raw_prices.loc[prev_date].values
-                pred_price = prev_real_price * np.exp(pred_log_return)
+                pred_price = prev_real_price * (1.0 + pred_arr)
                 
             reconstructed_prices.append(pred_price)
 
         return pd.DataFrame(reconstructed_prices, index=dates[start_idx : start_idx + loop_len], columns=self.asset_names)
 
-    def generate_reports(self, dates, raw_prices, rolling_means, rolling_stds, 
-                         train_preds, test1_preds, test2_preds, future_preds, 
-                         train_start, split_idx, T_total, outlier_threshold=0.08, plot_config=None):
+    def generate_reports(self, dates, raw_prices, train_preds, test1_preds, test2_preds, 
+                         future_preds, train_start, split_idx, T_total, outlier_threshold=0.08, plot_config=None):
         
         if plot_config is None:
             plot_config = {"save_png": True, "show_plots": False, "export_excel": True}
@@ -67,15 +59,15 @@ class PriceResultsReporter:
         print("[*] Reconstructing Absolute Prices for Financial Reporting...")
         
         df_pred_train = self._convert_to_real_prices(
-            train_start, split_idx, dates, train_preds, raw_prices, rolling_means, rolling_stds
+            train_start, split_idx, dates, train_preds, raw_prices
         )
         
         df_pred_test1 = self._convert_to_real_prices(
-            split_idx, T_total, dates, test1_preds, raw_prices, rolling_means, rolling_stds, is_autoregressive=False
+            split_idx, T_total, dates, test1_preds, raw_prices, is_autoregressive=False
         )
         
         df_pred_test2 = self._convert_to_real_prices(
-            split_idx, T_total, dates, test2_preds, raw_prices, rolling_means, rolling_stds, is_autoregressive=True
+            split_idx, T_total, dates, test2_preds, raw_prices, is_autoregressive=True
         )
 
         df_actual_full = raw_prices.loc[dates[train_start]:dates[T_total-1]]
@@ -84,21 +76,19 @@ class PriceResultsReporter:
         future_reconstructed = []
         last_date = dates[T_total - 1]
         last_real_price = raw_prices.loc[last_date].values
-        last_mu = rolling_means[last_date].values
-        last_sigma = rolling_stds[last_date].values
         
         current_future_price = last_real_price
 
-        for pred_std in future_preds:
+        for pred_ret in future_preds:
             # Apply identical bulletproof slicing to the future loop
-            pred_arr = np.array(pred_std)
+            pred_arr = np.array(pred_ret)
             while pred_arr.ndim > 2:
                 pred_arr = pred_arr[0]
             if pred_arr.ndim == 2:
                 pred_arr = pred_arr[0]
                 
-            pred_log_return = (pred_arr * last_sigma) + last_mu
-            pred_price = current_future_price * np.exp(pred_log_return)
+            # NEW MATH: P_t = P_{t-1} * (1 + Simple_Return)
+            pred_price = current_future_price * (1.0 + pred_arr)
             current_future_price = pred_price
             future_reconstructed.append(pred_price)
 

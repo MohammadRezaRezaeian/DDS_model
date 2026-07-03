@@ -6,9 +6,11 @@ import pytz
 import os
 
 class MarketDataProcessor:
-    def __init__(self, observation_window=60, mt5_path=r"C:\Program Files\WM Markets MT5 Terminal\terminal64.exe"):
+    def __init__(self, observation_window=60, params: dict = None):
         self.observation_window = observation_window
-        self.mt5_path = mt5_path
+        self.source = params.get("source", "meta").lower()
+        self.mt5_path = params.get("mt5_path", "C:\\Program Files\\WM Markets MT5 Terminal\\terminal64.exe")
+        self.csv_path = "./data/data.csv"
         self.rolling_means = {}
         self.rolling_stds = {}
 
@@ -33,6 +35,50 @@ class MarketDataProcessor:
         symbols = [s.strip() for s in symbols]
         print(f"[*] Loaded {len(symbols)} symbols: {symbols}")
         return symbols
+
+    def fetch_data(self, symbols: list, start_date: datetime, end_date: datetime) -> pd.DataFrame:
+        """
+        Master router method that fetches data either from MT5 or a local CSV.
+        """
+        if self.source == "meta":
+            return self.fetch_mt5_data(symbols, start_date, end_date)
+        elif self.source == "csv":
+            if not self.csv_path:
+                raise ValueError("csv_path must be provided in config when source is 'csv'")
+            return self.fetch_csv_data(symbols, self.csv_path)
+        else:
+            raise ValueError(f"Unknown data source: '{self.source}'. Valid options are 'meta' or 'csv'.")
+
+    def fetch_csv_data(self, symbols: list, csv_path: str) -> pd.DataFrame:
+        """
+        Reads historical close prices from a local CSV file.
+        Assumes the first column contains Datetimes, and column headers are symbol names.
+        """
+        print(f"[*] Initializing CSV data extraction from {csv_path}...")
+        
+        if not os.path.exists(csv_path):
+            raise FileNotFoundError(f"Cannot find the CSV file at {csv_path}")
+            
+        # Read the CSV, enforcing the first column (0) as the Datetime index
+        df = pd.read_csv(csv_path, parse_dates=[0], index_col=0)
+        df.index.name = 'time'
+        
+        # Filter for requested symbols that actually exist in the CSV
+        available_symbols = [s for s in symbols if s in df.columns]
+        missing_symbols = [s for s in symbols if s not in df.columns]
+        
+        if missing_symbols:
+            print(f"[!] Warning: The following symbols were not found in the CSV and will be skipped: {missing_symbols}")
+            
+        if not available_symbols:
+            raise ValueError("No matching symbols found in the provided CSV file.")
+
+        # Extract only the required columns and forward-fill missing data
+        raw_prices_df = df[available_symbols].copy()
+        raw_prices_df.ffill(inplace=True)
+        
+        print(f"[*] Successfully built raw price matrix from CSV with shape {raw_prices_df.shape}")
+        return raw_prices_df
 
     def fetch_mt5_data(self, symbols: list, start_date: datetime, end_date: datetime, timeframe=mt5.TIMEFRAME_D1) -> pd.DataFrame:
         """
@@ -83,19 +129,17 @@ class MarketDataProcessor:
         # Combine all series into a single DataFrame, forward-filling missing days
         raw_prices_df = pd.DataFrame(price_data)
         raw_prices_df.ffill(inplace=True)
-        # raw_prices_df.dropna(inplace=True) # Drop initial rows that couldn't be forward-filled
         
         print(f"[*] Successfully built raw price matrix with shape {raw_prices_df.shape}")
         return raw_prices_df
 
-    def compute_log_returns(self, prices_df: pd.DataFrame) -> pd.DataFrame:
+    def compute_returns(self, prices_df: pd.DataFrame) -> pd.DataFrame:
         """
         Converts raw prices to log returns: r_{i,t} = ln(P_{i,t} / P_{i,t-1})
         """
-        # Forward fill missing data again just in case, to avoid log(0) or NaNs
         prices_df = prices_df.ffill()
-        # log_returns = np.log(prices_df / prices_df.shift(1)).dropna()
-        log_returns = np.log(prices_df / prices_df.shift(1)).fillna(0)
+        prevPrices = prices_df.shift(1)
+        log_returns = ((prices_df -prevPrices) / prevPrices).fillna(0)
         return log_returns
 
     def standardize_returns(self, log_returns_df: pd.DataFrame) -> pd.DataFrame:

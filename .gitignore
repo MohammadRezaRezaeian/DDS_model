@@ -5,4 +5,5 @@ model/__pycache__/*
 optimizer/__pycache__/*
 
 dds_output/*
+data/*
 symbols.xlsx

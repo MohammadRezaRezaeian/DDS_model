@@ -8,15 +8,7 @@ from data_processor import MarketDataProcessor
 from model_engine import ModelEngine 
 from reporter import DDSReporter, PriceResultsReporter
 
-import time
-from contextlib import contextmanager
-@contextmanager
-def timer(name):
-    """Context manager to measure the execution time of a code block."""
-    start = time.perf_counter()
-    yield
-    end = time.perf_counter()
-    print(f"{name} runtime: {end - start:.4f} seconds")
+
 
 def load_config(filepath="config.json"):
     with open(filepath, 'r') as f:
@@ -31,16 +23,17 @@ def run_dds_pipeline():
     p_params = config["plot_params"]
     
     # 2. Get Data
-    processor = MarketDataProcessor(observation_window=60, mt5_path=g_params["mt5_path"])
+    processor = MarketDataProcessor(observation_window=60, params=g_params)
     assets = processor.load_symbols_from_excel(g_params["symbols_file"])
     
     end_date = datetime.now()
     start_date = end_date - timedelta(days=365 * g_params["history_years"])
-    raw_prices = processor.fetch_mt5_data(assets, start_date, end_date)
+    raw_prices = processor.fetch_data(assets, start_date, end_date)
     
-    std_returns_df = processor.standardize_returns(processor.compute_log_returns(raw_prices))
-    data_matrix = np.clip(std_returns_df.values, -10.0, 10.0)
-    dates = std_returns_df.index
+    # Updated: Using simple returns directly
+    returns_df = processor.compute_returns(raw_prices)
+    data_matrix = np.clip(returns_df.values, -10.0, 10.0)
+    dates = returns_df.index
     T_total, N = data_matrix.shape
     
     m_params["params"]["n_assets"] = N 
@@ -68,12 +61,11 @@ def run_dds_pipeline():
     diagnostic_reporter.generate_all_reports(plot_config=p_params)
     
     # 5b. Absolute Price Reconstruction and Plotting (Using unpacked results dict)
+    # Removed rolling_means and rolling_stds entirely
     price_reporter = PriceResultsReporter(assets, export_dir=g_params["export_dir"])
     price_reporter.generate_reports(
         dates=extended_dates,
         raw_prices=raw_prices,
-        rolling_means=processor.rolling_means,
-        rolling_stds=processor.rolling_stds,
         train_preds=results["train_preds"],
         test1_preds=results["test_preds"],
         test2_preds=results["test_preds_autoregressive"],
@@ -88,7 +80,7 @@ def run_dds_pipeline():
     # 6. Save the Trained Model
     # ---------------------------------------------------------
     model_save_path = os.path.join(g_params["export_dir"], "trained_engine.pkl")
-    model.save(model_save_path) # Fixed method call from 'save_state' to 'save'
+    model.save(model_save_path)
     
     print(f"[*] Pipeline complete. Model successfully saved to {model_save_path}")
 

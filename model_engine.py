@@ -18,7 +18,7 @@ class ModelEngine:
             m_params["model_name"], self.metric, self.optimizer, m_params["params"]
         )
         self.diagnostics = DiagnosticsCalculator(self.model)
-        
+
         self.L = self.model.L
         self.train_metrics = [] 
         self.history_buffer = None
@@ -203,9 +203,10 @@ class ModelEngine:
                 t_var = float(np.mean([m['MSE_var'] for m in train_step_metrics]))
                 t_k_trace = float(np.mean([m['Kalman_Trace'] for m in train_step_metrics]))
                 t_spectral = train_step_metrics[-1]['Spectral_Radius']
+                t_stochastiic_spectral = train_step_metrics[-1]['Stochastic_Spectral_Radius']
                 t_bic = train_step_metrics[-1]['BIC']
             else:
-                t_loss, t_var, t_k_trace, t_spectral, t_bic = 0.0, 0.0, 0.0, 0.0, 0.0
+                t_loss, t_var, t_k_trace, t_spectral, t_stochastiic_spectral, t_bic = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
                 
             t_koopman = self.diagnostics.get_koopman_spectral_radius() if self.diagnostics else 0.0
 
@@ -214,6 +215,7 @@ class ModelEngine:
                 "Var": t_var,
                 "Kalman_Trace": t_k_trace,
                 "Spectral_Radius": t_spectral,
+                "Stochastic_Spectral_Radius": t_stochastiic_spectral,
                 "BIC": t_bic,
                 "Koopman_Radius": t_koopman
             }

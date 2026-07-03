@@ -51,6 +51,9 @@ class DDSReporter:
             # Dynamically check if columns exist before plotting to prevent KeyErrors
             if 'Spectral_Radius' in df_train.columns:
                 self._plot_spectral_radius(df_train, save_png, show_plots)
+
+            if 'Stochastic_Spectral_Radius' in df_train.columns:
+                self._plot_stochastic_spectral_radius(df_train, save_png, show_plots)
             
             if 'BIC' in df_train.columns:
                 self._plot_bic(df_train, save_png, show_plots)
@@ -83,6 +86,16 @@ class DDSReporter:
         plt.ylabel("Maximum Eigenvalue")
         plt.legend()
         self._handle_plot_output("metric_1_spectral_radius.png", save_png, show_plots)
+
+    def _plot_stochastic_spectral_radius(self, df_train, save_png, show_plots):
+        plt.figure(figsize=(12, 6))
+        plt.plot(df_train.index, df_train['Stochastic_Spectral_Radius'], color='darkred', marker='o')
+        plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="OVERFITTING SIGNAL: Chaos Threshold (>1.0)")
+        plt.title("Stability Index (Stochastic Spectral Radius) per Epoch")
+        plt.xlabel("Epoch")
+        plt.ylabel("Maximum Eigenvalue")
+        plt.legend()
+        self._handle_plot_output("metric_5_Stochastic_spectral_radius.png", save_png, show_plots)
 
     def _plot_generalization_gap(self, df_test, save_png, show_plots):
         plt.figure(figsize=(12, 6))

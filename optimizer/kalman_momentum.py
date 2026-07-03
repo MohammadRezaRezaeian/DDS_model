@@ -28,7 +28,7 @@ class KalmanMomentum(BaseOptimizer):
         s_max = np.max(np.abs(history), axis=0)
         actual_state = history[-1]
         
-        shock = actual_state / (s_max + 1e-8)
+        shock = actual_state / (s_max + 1e-6)
         
         # 3. Safe Error Calculation
         # Add 1e-8 to the denominator. No need for nan_to_num if division by zero is impossible.
@@ -62,15 +62,17 @@ class KalmanMomentum(BaseOptimizer):
             
             # --- CAUSAL MOMENTUM GRADIENT ---
             raw_grad = surprise.reshape(model.N, 1) * x_lag.reshape(1, model.N)
-            model.momentum_beta = np.maximum(np.abs(shock), np.abs(error))
-            momentum = ((1 - model.momentum_beta) * model.gradient_momentum_tensor[:, :, current_idx]) + (model.momentum_beta * raw_grad)
+            raw_shock = actual_state.reshape(model.N, 1) * x_lag.reshape(1, model.N)
+            model.momentum_beta_1 = np.abs(shock)**0.1
+            model.momentum_beta_2 = np.abs(error)
+            momentum = (model.momentum_beta_1 * raw_shock) + (model.momentum_beta_2 * raw_grad)
             model.gradient_momentum_tensor[:, :, current_idx] = momentum
             
             # --- TENSOR UPDATES ---
-            model.mu_tensor[:, :, current_idx] = (mu_old * adaptive_decay) + (k_gain * np.clip(momentum, -0.5, 0.5))
+            model.mu_tensor[:, :, current_idx] = (mu_old) + (np.clip(momentum, -10, 10))
             model.mu_tensor[:, :, current_idx] = np.clip(model.mu_tensor[:, :, current_idx], -10.0, 10.0)
             
-            model.sigma_sq_tensor[:, :, current_idx] =  np.clip((1.0 - k_gain) * sigma_sq_prior, 1e-6, 0.1)
+            model.sigma_sq_tensor[:, :, current_idx] = np.clip((1.0 - k_gain) * sigma_sq_prior, 1e-8, 0.1)
 
 
         return float(np.clip(k_trace_sum, -10, 10))

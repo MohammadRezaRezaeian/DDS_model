@@ -12,6 +12,8 @@ class BayesianTensorDDS(BaseModel):
         self.momentum_beta = params.get("momentum_beta", 10)
         self.ridge_penalty = params.get("ridge_penalty", 10)
         
+        self.l_rate = 1
+        
         self.mu_tensor = np.zeros((self.N, self.N, self.L))
         self.sigma_sq_tensor = np.ones((self.N, self.N, self.L)) 
         self.gradient_momentum_tensor = np.zeros((self.N, self.N, self.L))
@@ -79,11 +81,11 @@ class BayesianTensorDDS(BaseModel):
             # ---------------------------------------------------------
             target_trunc = data[t : t + r]
 
-            metric = self.metric.loss(target_trunc, pred_trunc)
+            loss = self.metric.loss(target_trunc, pred_trunc)
             k_trace = 0.0
             if is_training:
                 # Pass HISTORY to the optimizer to map past events to future errors
-                k_trace = self.optimizer.update(self, history, metric)
+                k_trace = self.optimizer.update(self, history, loss)
                 
                 self.mu_tensor[np.abs(self.mu_tensor) < 1e-15] = 0.0
                 
@@ -96,8 +98,9 @@ class BayesianTensorDDS(BaseModel):
                     'Mode': 'Train' if is_training else 'Validation', 
                     'MSE_Loss': mse_error,
                     "MSE_var": mse_var,
-                    'Kalman_Trace': k_trace, 
-                    'Spectral_Radius': diagnostics.get_stochastic_spectral_radius() if is_last_step else 0.0,
+                    'Kalman_Trace': k_trace,
+                    'Spectral_Radius': diagnostics.get_spectral_radius() if is_last_step else 0.0,
+                    'Stochastic_Spectral_Radius': diagnostics.get_stochastic_spectral_radius() if is_last_step else 0.0,
                     'BIC': diagnostics.calculate_bic(len(metrics_report) + 1, mse_error) if is_last_step else 0.0
                 })
                 
