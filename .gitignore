@@ -4,6 +4,6 @@ metric/__pycache__/*
 model/__pycache__/*
 optimizer/__pycache__/*
 
-dds_output/*
+dds_outputs/*
 data/*
 symbols.xlsx
