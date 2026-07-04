@@ -53,11 +53,12 @@ class KalmanMomentum(BaseOptimizer):
             mu_old = np.mean(model.mu_tensor[:, :, start_idx:end_idx], axis=2)
             sigma_old = np.mean(model.sigma_sq_tensor[:, :, start_idx:end_idx], axis=2)
             
-            adaptive_r = np.clip(0.01 + (0.1 * np.exp(-0.5 * shock)), 1e-5, 0.5)
-            adaptive_decay = np.clip(1.0 - (0.05 * np.abs(shock)), 0.99, 1.0)
+            # adaptive_r = np.clip(1e5 + (0.1* np.exp(-1e4 * shock)), 0, 0.5)
+            adaptive_r = shock
+            # adaptive_decay = np.clip(1.0 - (0.05 * np.abs(shock)), 0.99, 1.0)
             
             sigma_sq_prior = sigma_old 
-            k_gain = sigma_sq_prior / (sigma_sq_prior + adaptive_r)
+            k_gain = sigma_sq_prior / (sigma_sq_prior + adaptive_r) 
             
             k_trace_sum += np.mean(k_gain)
             
@@ -75,7 +76,7 @@ class KalmanMomentum(BaseOptimizer):
             model.mu_tensor[:, :, current_idx] = np.clip(model.mu_tensor[:, :, current_idx], -mu_bound, mu_bound)
             self.mu_avg = (model.L * self.mu_avg + model.mu_tensor[:, :, current_idx] )/(model.L + 1)
             
-            model.sigma_sq_tensor[:, :, current_idx] = np.clip((1.0 - k_gain) * sigma_sq_prior, 1e-6, 0.1)
+            model.sigma_sq_tensor[:, :, current_idx] = np.clip((1.0 - k_gain) * sigma_sq_prior, 1e-5, 0.1)
 
 
         return float(np.clip(k_trace_sum, -10, 10))

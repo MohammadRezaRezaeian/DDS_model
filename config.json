@@ -3,24 +3,24 @@
         "source": "meta",
         "mt5_path": "C:\\Program Files\\WM Markets MT5 Terminal\\terminal64.exe",
         "symbols_file": "symbols.xlsx",
-        "history_years": 15,
+        "history_years": 5,
         "export_dir": "dds_outputs"
     },
     "learning_params": {
-        "warmUp" : 500,
+        "warmUp" : 200,
         "split_ratio": 0.98,
-        "N_epochs": 50,
-        "chunk_size": 200,
-        "itteration_method": "sequential",
-        "future_days": 10
+        "N_epochs": 300,
+        "chunk_size": 5,
+        "itteration_method": "random",
+        "future_days": 30
     },
     "model_params": {
         "model_name": "BayesianTensor",
         "metric_name": "MSE",
         "optimizer_name": "KalmanMomentum",
         "params" : {
-            "lag_depth": 20,
-            "Horizon" : 1,
+            "lag_depth": 5,
+            "Horizon" : 30,
             "momentum_beta": 0.9,
             "ridge_penalty": 1.0
         }

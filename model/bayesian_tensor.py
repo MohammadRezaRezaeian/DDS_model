@@ -56,7 +56,7 @@ class BayesianTensorDDS(BaseModel):
             predictions[h] = step_pred
             current_buffer = np.vstack([current_buffer[1:], step_pred])
             
-        return predictions
+        return np.clip(predictions, a_min=-0.2, a_max=0.2)
 
     def update(self, data: np.ndarray, diagnostics=None, is_training: bool = True):
         preds = []
