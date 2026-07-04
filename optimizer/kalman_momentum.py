@@ -7,6 +7,7 @@ class KalmanMomentum(BaseOptimizer):
     Optimizes weights by comparing the mean of N future predictions 
     against the mean of N real future states.
     """
+    mu_avg = 0
     
     def update(self, model, history: np.ndarray, metric: np.ndarray) -> float:
         k_trace_sum = 0.0
@@ -19,7 +20,7 @@ class KalmanMomentum(BaseOptimizer):
         
         # 1. Clean the incoming metric to prevent inherited overflows
         clean_metric = np.clip(np.nan_to_num(metric), -1e5, 1e5)
-        surprise = np.mean(clean_metric, axis=0)
+        surprise = np.mean(clean_metric, axis=0) if clean_metric.ndim > 1 else clean_metric
         
         model.s_norm_max = np.linalg.norm(history)
 
@@ -53,7 +54,7 @@ class KalmanMomentum(BaseOptimizer):
             sigma_old = np.mean(model.sigma_sq_tensor[:, :, start_idx:end_idx], axis=2)
             
             adaptive_r = np.clip(0.01 + (0.1 * np.exp(-0.5 * shock)), 1e-5, 0.5)
-            adaptive_decay = np.clip(1.0 - (0.05 * np.abs(shock)), 0.95, 1.0)
+            adaptive_decay = np.clip(1.0 - (0.05 * np.abs(shock)), 0.99, 1.0)
             
             sigma_sq_prior = sigma_old 
             k_gain = sigma_sq_prior / (sigma_sq_prior + adaptive_r)
@@ -63,16 +64,18 @@ class KalmanMomentum(BaseOptimizer):
             # --- CAUSAL MOMENTUM GRADIENT ---
             raw_grad = surprise.reshape(model.N, 1) * x_lag.reshape(1, model.N)
             raw_shock = actual_state.reshape(model.N, 1) * x_lag.reshape(1, model.N)
-            model.momentum_beta_1 = np.abs(shock)**0.1
+            model.momentum_beta_1 = np.abs(shock)
             model.momentum_beta_2 = np.abs(error)
             momentum = (model.momentum_beta_1 * raw_shock) + (model.momentum_beta_2 * raw_grad)
             model.gradient_momentum_tensor[:, :, current_idx] = momentum
             
             # --- TENSOR UPDATES ---
-            model.mu_tensor[:, :, current_idx] = (mu_old) + (np.clip(momentum, -10, 10))
-            model.mu_tensor[:, :, current_idx] = np.clip(model.mu_tensor[:, :, current_idx], -10.0, 10.0)
+            mu_bound = 2/(0.01*(np.mean(self.mu_avg ) - 1)**2 + 1)
+            model.mu_tensor[:, :, current_idx] = (self.mu_avg) + (np.clip(momentum, -mu_bound, mu_bound))
+            model.mu_tensor[:, :, current_idx] = np.clip(model.mu_tensor[:, :, current_idx], -mu_bound, mu_bound)
+            self.mu_avg = (model.L * self.mu_avg + model.mu_tensor[:, :, current_idx] )/(model.L + 1)
             
-            model.sigma_sq_tensor[:, :, current_idx] = np.clip((1.0 - k_gain) * sigma_sq_prior, 1e-8, 0.1)
+            model.sigma_sq_tensor[:, :, current_idx] = np.clip((1.0 - k_gain) * sigma_sq_prior, 1e-6, 0.1)
 
 
         return float(np.clip(k_trace_sum, -10, 10))

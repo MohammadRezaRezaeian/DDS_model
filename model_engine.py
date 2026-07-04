@@ -251,7 +251,9 @@ class ModelEngine:
                   f"Train {loss_name}: {t_loss:.6f}, Var: {t_var:.6f} | "
                   f"Val {loss_name}: {v_loss:.6f}, Var: {v_var:.6f} | "
                   f"Kalman Trace: {t_k_trace:.4f} | "
-                  f"Koopman Radius: {t_koopman:.4f}")
+                  f"Koopman Radius: {t_koopman:.4f} | "
+                  f"Mu Avg: {np.mean(self.model.mu_tensor):.4f} | "
+                  f"Sigma Avg: {np.mean(self.model.sigma_sq_tensor):.4f} | ")
 
         # ---------------------------------------------------------
         # Final clean prediction sweep for the reporter

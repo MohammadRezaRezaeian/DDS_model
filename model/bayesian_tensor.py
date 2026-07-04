@@ -42,10 +42,9 @@ class BayesianTensorDDS(BaseModel):
         
         predictions = np.empty((self.H, self.N))
         current_buffer = np.copy(data[-self.L:])
+        sampled_weights = np.random.normal(loc=self.mu_tensor, scale=np.sqrt(self.sigma_sq_tensor))
             
         for h in range(self.H):
-            sampled_weights = np.random.normal(loc=self.mu_tensor, scale=np.sqrt(self.sigma_sq_tensor))
-            
             reversed_buffer = current_buffer[::-1]
             weighted_history = sampled_weights * reversed_buffer.T
             step_pred = np.sum(weighted_history, axis=(1, 2))

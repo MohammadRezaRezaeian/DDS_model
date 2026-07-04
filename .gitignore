@@ -6,4 +6,4 @@ optimizer/__pycache__/*
 
 dds_outputs/*
 data/*
-symbols.xlsx
+*.xlsx
