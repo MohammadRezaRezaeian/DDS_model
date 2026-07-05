@@ -170,13 +170,19 @@ class PriceResultsReporter:
                 plt.plot(plot_actual.index, plot_actual[asset], label="Actual Market Price", color='black', linewidth=1.5, zorder=1)
                 
                 # Slice the Train predictions
-                if not df_pred_train.empty and asset in df_pred_train.columns:
-                    train_y = df_pred_train[asset].loc[plot_start_date:].copy()
-                    if not train_y.empty:
-                        valid_idx = train_y.index.intersection(plot_actual.index)
-                        train_pct_dev = np.abs(train_y.loc[valid_idx] - plot_actual[asset].loc[valid_idx]) / plot_actual[asset].loc[valid_idx]
-                        train_y.loc[valid_idx][train_pct_dev > outlier_threshold] = np.nan 
-                        plt.plot(train_y.index, train_y, label="Train Phase (Learning)", color='blue', alpha=0.3, marker='.', markersize=3, linestyle='None', zorder=2)
+                if not df_pred_test1.empty and asset in df_pred_test1.columns:
+                    test1_y = df_pred_test1[asset].loc[plot_start_date:].copy()
+                    if not test1_y.empty:
+                        valid_idx = test1_y.index.intersection(df_actual_test.index)
+                        test1_pct_dev = np.abs(test1_y.loc[valid_idx] - df_actual_test[asset].loc[valid_idx]) / df_actual_test[asset].loc[valid_idx]
+                        
+                        # --- THE FIX ---
+                        # 1. Find the exact dates where the outlier condition is True
+                        test1_outlier_dates = valid_idx[test1_pct_dev > outlier_threshold]
+                        # 2. Assign NaN in a single, unchained step
+                        test1_y.loc[test1_outlier_dates] = np.nan 
+                        
+                        plt.plot(test1_y.index, test1_y, label="Test 1: One-Step Ahead", color='cyan', alpha=0.9, marker='x', markersize=4, linestyle='None', zorder=3)
                 
                 # Slice the Test 1 predictions
                 if not df_pred_test1.empty and asset in df_pred_test1.columns:

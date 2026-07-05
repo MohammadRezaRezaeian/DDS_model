@@ -87,19 +87,28 @@ class BayesianTensorDDS(BaseModel):
                 k_trace = self.optimizer.update(self, history, loss)
                 
                 self.mu_tensor[np.abs(self.mu_tensor) < 1e-15] = 0.0
-                
+            
+            is_last_step = (t == len(data) - 1)
+            if is_last_step:
+                spectral_residue = diagnostics.get_spectral_radius()
+                self.l_rate = 1 / np.clip(spectral_residue, a_min = 0.9, a_max=2)
+            else:
+                spectral_residue = 0
+            
+            
             if diagnostics is not None:
                 mse_error = float(self.metric.metric(target_trunc, pred_trunc))
                 mse_var = float(self.metric.var(target_trunc, pred_trunc))
-                is_last_step = (t == len(data) - 1)
+                
                 
                 metrics_report.append({
                     'Mode': 'Train' if is_training else 'Validation', 
                     'MSE_Loss': mse_error,
                     "MSE_var": mse_var,
                     'Kalman_Trace': k_trace,
-                    'Spectral_Radius': diagnostics.get_spectral_radius() if is_last_step else 0.0,
+                    'Spectral_Radius': spectral_residue,
                     'Stochastic_Spectral_Radius': diagnostics.get_stochastic_spectral_radius() if is_last_step else 0.0,
+                    'Koopman_Radius': diagnostics.get_koopman_spectral_radius() if is_last_step else 0.0,
                     'BIC': diagnostics.calculate_bic(len(metrics_report) + 1, mse_error) if is_last_step else 0.0
                 })
                 

@@ -1,6 +1,7 @@
 import numpy as np
 import pickle
 import os
+import time
 
 from component_factory import ComponentFactory
 from metric.stability import DiagnosticsCalculator
@@ -182,6 +183,7 @@ class ModelEngine:
 
         # Loop directly over the yielded data stream AND its matching history buffer
         for epoch, (epoch_subset, hist_buffer, epoch_val_subset) in enumerate(self._chunk_data(train_subset, N_epochs, post_warmup_buffer), start=1):
+            start_time = time.time()
             
             # Apply the correct history buffer for this specific timeline segment
             self.history_buffer = np.copy(hist_buffer)
@@ -204,11 +206,12 @@ class ModelEngine:
                 t_k_trace = float(np.mean([m['Kalman_Trace'] for m in train_step_metrics]))
                 t_spectral = train_step_metrics[-1]['Spectral_Radius']
                 t_stochastiic_spectral = train_step_metrics[-1]['Stochastic_Spectral_Radius']
+                t_koopman = train_step_metrics[-1]['Koopman_Radius']
                 t_bic = train_step_metrics[-1]['BIC']
             else:
                 t_loss, t_var, t_k_trace, t_spectral, t_stochastiic_spectral, t_bic = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
                 
-            t_koopman = self.diagnostics.get_koopman_spectral_radius() if self.diagnostics else 0.0
+            
 
             t_metrics = {
                 "Loss": t_loss,
@@ -216,8 +219,9 @@ class ModelEngine:
                 "Kalman_Trace": t_k_trace,
                 "Spectral_Radius": t_spectral,
                 "Stochastic_Spectral_Radius": t_stochastiic_spectral,
+                "Koopman_Radius": t_koopman,
                 "BIC": t_bic,
-                "Koopman_Radius": t_koopman
+                "Koopman_Spectral_Radius": t_koopman
             }
 
             # ---------------------------------------------------------
@@ -251,9 +255,11 @@ class ModelEngine:
                   f"Train {loss_name}: {t_loss:.6f}, Var: {t_var:.6f} | "
                   f"Val {loss_name}: {v_loss:.6f}, Var: {v_var:.6f} | "
                   f"Kalman Trace: {t_k_trace:.4f} | "
-                  f"Koopman Radius: {t_koopman:.4f} | "
-                  f"Mu Avg: {np.mean(self.model.mu_tensor):.4f} | "
-                  f"Sigma Avg: {np.mean(self.model.sigma_sq_tensor):.4f} | ")
+                  f"S Radius: {t_spectral:.4f} | "
+                  f"K Radius: {t_koopman:.4f} | "
+                  f"Mu Avg: {np.mean(self.model.mu_tensor):.6f} | "
+                  f"S Avg: {np.mean(self.model.sigma_sq_tensor):.6f} | "
+                  f"{time.time() - start_time:.2f} s.")
 
         # ---------------------------------------------------------
         # Final clean prediction sweep for the reporter

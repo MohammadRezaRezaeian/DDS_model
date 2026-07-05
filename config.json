@@ -3,14 +3,14 @@
         "source": "meta",
         "mt5_path": "C:\\Program Files\\WM Markets MT5 Terminal\\terminal64.exe",
         "symbols_file": "symbols.xlsx",
-        "history_years": 5,
+        "history_years": 15,
         "export_dir": "dds_outputs"
     },
     "learning_params": {
-        "warmUp" : 200,
-        "split_ratio": 0.98,
-        "N_epochs": 300,
-        "chunk_size": 5,
+        "warmUp" : 1000,
+        "split_ratio": 0.99,
+        "N_epochs": 50,
+        "chunk_size": 50,
         "itteration_method": "random",
         "future_days": 30
     },
@@ -19,8 +19,8 @@
         "metric_name": "MSE",
         "optimizer_name": "KalmanMomentum",
         "params" : {
-            "lag_depth": 5,
-            "Horizon" : 30,
+            "lag_depth": 20,
+            "Horizon" : 60,
             "momentum_beta": 0.9,
             "ridge_penalty": 1.0
         }

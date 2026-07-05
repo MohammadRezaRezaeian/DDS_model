@@ -54,6 +54,10 @@ class DDSReporter:
 
             if 'Stochastic_Spectral_Radius' in df_train.columns:
                 self._plot_stochastic_spectral_radius(df_train, save_png, show_plots)
+                
+            # ---> ADDED: Koopman Spectral Radius Chart Hook <---
+            if 'Koopman_Radius' in df_train.columns:
+                self._plot_koopman_spectral_radius(df_train, save_png, show_plots)
             
             if 'BIC' in df_train.columns:
                 self._plot_bic(df_train, save_png, show_plots)
@@ -97,6 +101,17 @@ class DDSReporter:
         plt.legend()
         self._handle_plot_output("metric_5_Stochastic_spectral_radius.png", save_png, show_plots)
 
+    # ---> ADDED: Koopman Spectral Radius Plot Method <---
+    def _plot_koopman_spectral_radius(self, df_train, save_png, show_plots):
+        plt.figure(figsize=(12, 6))
+        plt.plot(df_train.index, df_train['Koopman_Radius'], color='teal', marker='o')
+        plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="OVERFITTING SIGNAL: Chaos Threshold (>1.0)")
+        plt.title("Stability Index (Koopman Spectral Radius) per Epoch")
+        plt.xlabel("Epoch")
+        plt.ylabel("Maximum Eigenvalue (Approximated)")
+        plt.legend()
+        self._handle_plot_output("metric_6_koopman_spectral_radius.png", save_png, show_plots)
+
     def _plot_generalization_gap(self, df_test, save_png, show_plots):
         plt.figure(figsize=(12, 6))
         plt.plot(df_test.index, df_test['Test1_MSE'], label='Test 1 MSE (Anchored)', color='blue', alpha=0.7)
@@ -136,5 +151,3 @@ class DDSReporter:
         plt.yscale('log')
         plt.legend()
         self._handle_plot_output("metric_0_phase1_holdout.png", save_png, show_plots)
-
-
