@@ -9,7 +9,7 @@
     "learning_params": {
         "warmUp" : 1000,
         "split_ratio": 0.99,
-        "N_epochs": 50,
+        "N_epochs": 100,
         "chunk_size": 50,
         "itteration_method": "random",
         "future_days": 30
@@ -19,7 +19,7 @@
         "metric_name": "MSE",
         "optimizer_name": "KalmanMomentum",
         "params" : {
-            "lag_depth": 20,
+            "lag_depth": 10,
             "Horizon" : 60,
             "momentum_beta": 0.9,
             "ridge_penalty": 1.0

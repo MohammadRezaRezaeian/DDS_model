@@ -91,7 +91,7 @@ class BayesianTensorDDS(BaseModel):
             is_last_step = (t == len(data) - 1)
             if is_last_step:
                 spectral_residue = diagnostics.get_spectral_radius()
-                self.l_rate = 1 / np.clip(spectral_residue, a_min = 0.9, a_max=2)
+                self.l_rate = 1 / np.clip(spectral_residue, a_min = 0.9, a_max=1.2)
             else:
                 spectral_residue = 0
             
