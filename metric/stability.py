@@ -23,7 +23,7 @@ class DiagnosticsCalculator:
             all_eigenvalues[tau, :] = eigvals[np.argsort(np.abs(eigvals))]
             
         # Average the eigenvalues across all lags
-        avg_eigenvalues = np.sum(all_eigenvalues, axis=0)
+        avg_eigenvalues = np.mean(all_eigenvalues, axis=0)
         
         # Find the maximum of the averaged eigenvalues
         total_spectral_radius = np.max(np.abs(avg_eigenvalues))

@@ -3,15 +3,12 @@ from .base_optimizer import BaseOptimizer
 
 class KalmanMomentum(BaseOptimizer):
     """
-    Horizon-Aware Adaptive Kalman Filter Engine
-    Optimizes weights by comparing the mean of N future predictions 
-    against the mean of N real future states.
+    Classic Vectorized Kalman Momentum Engine
+    Uses true Kalman Gain to optimally update the tensor weights, 
+    combining momentum gradients with uncertainty-bounded steps.
     """
-    mu_avg = 0
     
     def update(self, model, history: np.ndarray, metric: np.ndarray) -> float:
-        k_trace_sum = 0.0
-        
         if len(metric) <= 0:
             return 0.0 
             
@@ -23,59 +20,68 @@ class KalmanMomentum(BaseOptimizer):
         
         model.s_norm_max = np.linalg.norm(history)
 
-        # 2. Safe Shock Calculation (Element-wise)
-        # Use absolute maximums and add 1e-8 to physically prevent division by zero
+        # 2. Safe Shock & Error Calculation (Element-wise)
         s_max = np.max(np.abs(history), axis=0)
         actual_state = history[-1]
         
         shock = actual_state / (s_max + 1e-6)
         
-        # 3. Safe Error Calculation
-        # Add 1e-8 to the denominator. No need for nan_to_num if division by zero is impossible.
         max_surprise = np.max(np.abs(surprise))
         error = surprise / (max_surprise + 1e-10)
         
-        # Optional but recommended: Clip the final ratios to prevent runaway momentum
         shock = np.clip(shock, -5.0, 5.0)
         error = np.clip(error, -5.0, 5.0)
 
         self._store_vars("surprise", surprise)
         self._store_vars("error", error)
         
-        for tau in range(1, model.L + 1):
-            x_lag = lag_history[tau-1]
-            
-            current_idx = tau - 1
-            start_idx = max(0, current_idx - model.L)
-            end_idx = min(model.L, current_idx + model.L + 1)
-            
-            mu_old = np.mean(model.mu_tensor[:, :, start_idx:end_idx], axis=2)
-            sigma_old = np.mean(model.sigma_sq_tensor[:, :, start_idx:end_idx], axis=2)
-            
-            adaptive_s = np.clip(1e-3* np.exp(-1e6 * sigma_old), 0, 0.5)
-            adaptive_r = shock
-            # adaptive_decay = np.clip(1.0 - (0.05 * np.abs(shock)), 0.99, 1.0)
-            
-            k_gain = sigma_old / (sigma_old + adaptive_r) 
-            
-            k_trace_sum += np.mean(k_gain)
-            
-            # --- CAUSAL MOMENTUM GRADIENT ---
-            raw_grad = surprise.reshape(model.N, 1) * x_lag.reshape(1, model.N)
-            raw_shock = actual_state.reshape(model.N, 1) * x_lag.reshape(1, model.N)
-            model.momentum_beta_1 = shock
-            model.momentum_beta_2 = error
-            
-            momentum = (model.momentum_beta_1 * raw_shock) + (model.momentum_beta_2 * raw_grad)
-            model.gradient_momentum_tensor[:, :, current_idx] = momentum
-            
-            # --- TENSOR UPDATES ---
-            mu_bound = 2/(0.01*(np.mean(self.mu_avg ) - 1)**2 + 1)
-            model.mu_tensor[:, :, current_idx] = (model.l_rate * self.mu_avg) + (np.clip(momentum, -mu_bound, mu_bound))
-            model.mu_tensor[:, :, current_idx] = np.clip(model.mu_tensor[:, :, current_idx], -mu_bound, mu_bound)
-            
-            model.sigma_sq_tensor[:, :, current_idx] = np.clip(adaptive_s * (1 - k_gain), 1e-9, 0.1)
+        # ---------------------------------------------------------
+        # 3. VECTORIZED MOMENTUM GRADIENT (Einstein Summation)
+        # Calculates the momentum for ALL lags and predictors instantly.
+        # ---------------------------------------------------------
+        model.momentum_beta_1 = np.abs(shock)
+        model.momentum_beta_2 = np.abs(error)
+        
+        # Reshape betas for 3D broadcasting: (N, 1, 1)
+        beta_1 = model.momentum_beta_1[:, None, None]
+        beta_2 = model.momentum_beta_2[:, None, None]
+        
+        raw_grad_tensor = np.einsum('i, lk -> ikl', surprise, lag_history)
+        raw_shock_tensor = np.einsum('i, lk -> ikl', actual_state, lag_history)
+        
+        momentum_tensor = (beta_1 * raw_shock_tensor) + (beta_2 * raw_grad_tensor)
+        model.gradient_momentum_tensor = momentum_tensor
+        
+        # ---------------------------------------------------------
+        # 4. CLASSIC KALMAN FILTER UPDATES
+        # ---------------------------------------------------------
+        
+        # A. Process Noise (Q) and Measurement Noise (R)
+        # Q prevents the variance from completely collapsing to 0
+        Q = 1e-7
+        
+        # R must be positive. We reshape to (N, 1, 1) so each target asset 
+        # uses its own specific shock variance when updating its weights.
+        R = np.abs(shock**2).reshape(model.N, 1, 1) + 1e-8
+        
+        # B. Prior Uncertainty
+        sigma_prior = model.sigma_sq_tensor + Q 
+        
+        # C. Calculate Kalman Gain (K)
+        # Shape: (N, N, L) - optimal learning rate per specific weight
+        K_gain = sigma_prior / (sigma_prior + R)
+        
+        # D. CLASSIC STATE UPDATE (Mu)
+        # Mu_new = Mu_old + (Kalman_Gain * Innovation_Gradient)
+        model.mu_tensor = model.mu_tensor + (K_gain * momentum_tensor)
+        model.mu_tensor = np.clip(model.mu_tensor, -5.0, 5.0)
+        
+        # E. CLASSIC COVARIANCE UPDATE (Sigma)
+        # Sigma_new = (1 - K) * Sigma_prior
+        model.sigma_sq_tensor = (1.0 - K_gain) * sigma_prior
+        model.sigma_sq_tensor = np.clip(model.sigma_sq_tensor, 1e-9, 0.5)
 
-        self.mu_avg = (model.L * self.mu_avg + np.mean(model.mu_tensor, axis = 2) )/ (model.L + 1)
+        # Return trace for diagnostics
+        k_trace_sum = float(np.sum(K_gain))
 
         return float(np.clip(k_trace_sum, -10, 10))

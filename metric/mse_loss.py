@@ -50,4 +50,4 @@ class MSELoss(BaseMetric):
         # 5. Apply the weights to the differences and find the max
         weighted_diff = (actual_tri - predicted_tri) * weights
         
-        return np.max(weighted_diff, axis=0)
+        return np.mean(weighted_diff, axis=0)
