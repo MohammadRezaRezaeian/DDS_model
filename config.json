@@ -7,10 +7,10 @@
         "export_dir": "dds_outputs"
     },
     "learning_params": {
-        "warmUp" : 500,
+        "warmUp" : 300,
         "split_ratio": 0.98,
-        "N_epochs": 100,
-        "chunk_size": 100,
+        "N_epochs": 50,
+        "chunk_size": 300,
         "itteration_method": "sequential",
         "future_days": 50
     },
@@ -19,12 +19,12 @@
         "metric_name": "MSE",
         "optimizer_name": "CPSGDOptimizer",
         "params" : {
-            "lag_depth": 40,
-            "Horizon" : 60,
-            "rank": 30,
-            "eta_asset": 0.01,
-            "eta_temp": 0.001,
-            "ridge_penalty": 0.01
+            "lag_depth": 200,
+            "Horizon" : 120,
+            "rank": 5,
+            "eta_asset": 0.001,
+            "eta_temp": 0.01,
+            "ridge_penalty": 0.0001
         }
     },
     "plot_params": {
