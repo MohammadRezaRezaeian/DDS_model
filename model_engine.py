@@ -68,12 +68,14 @@ class ModelEngine:
 
         print("[*] PHASE 2: Predicting Test Data (Anchored & Autoregressive)...")
         test_preds = self.predict(test_data, autoregressive=False)
+        self.history_buffer = train_subset[- self.L:]
         test_preds_autoregressive = self.predict(test_data, autoregressive=True)
 
         print("[*] PHASE 3: Catch-up Updating on Test Data...")
         self.update(test_train, is_training=True)
 
         print(f"[*] PHASE 4: Forecasting {future_days} days into the future...")
+        self.history_buffer = data_matrix[- self.L:]
         future_preds = self.predict(np.zeros((future_days, data_matrix.shape[1])), autoregressive=True)
 
         return {

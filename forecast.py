@@ -190,7 +190,8 @@ class PriceResultsReporter:
                     if not test1_y.empty:
                         valid_idx = test1_y.index.intersection(df_actual_test.index)
                         test1_pct_dev = np.abs(test1_y.loc[valid_idx] - df_actual_test[asset].loc[valid_idx]) / df_actual_test[asset].loc[valid_idx]
-                        test1_y.loc[valid_idx][test1_pct_dev > outlier_threshold] = np.nan 
+                        outlier_dates = valid_idx[test1_pct_dev > outlier_threshold]
+                        test1_y.loc[outlier_dates] = np.nan
                         plt.plot(test1_y.index, test1_y, label="Test 1: One-Step Ahead", color='cyan', alpha=0.9, marker='x', markersize=4, linestyle='None', zorder=3)
 
                 # Slice the Test 2 predictions

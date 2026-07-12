@@ -9,22 +9,22 @@
     "learning_params": {
         "warmUp" : 500,
         "split_ratio": 0.98,
-        "N_epochs": 20,
+        "N_epochs": 100,
         "chunk_size": 100,
-        "itteration_method": "random",
-        "future_days": 30
+        "itteration_method": "sequential",
+        "future_days": 50
     },
     "model_params": {
         "model_name": "BayesianTensor",
-        "metric_name": "CPFrobenius",
+        "metric_name": "MSE",
         "optimizer_name": "CPSGDOptimizer",
         "params" : {
-            "lag_depth": 200,
-            "Horizon" : 1,
-            "rank": 50,
-            "eta_asset": 0.05,
-            "eta_temp": 0.005,
-            "ridge_penalty": 0.1
+            "lag_depth": 40,
+            "Horizon" : 60,
+            "rank": 30,
+            "eta_asset": 0.01,
+            "eta_temp": 0.001,
+            "ridge_penalty": 0.01
         }
     },
     "plot_params": {

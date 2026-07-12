@@ -21,9 +21,10 @@ class DiagnosticsCalculator:
             eigvals = np.linalg.eigvals(self.model.mu_tensor[:, :, tau])
             # Sort eigenvalues by magnitude to meaningfully align and average them
             all_eigenvalues[tau, :] = eigvals[np.argsort(np.abs(eigvals))]
-            
+        
+        eighens = eigvals = np.linalg.eigvals(self.model.mu_tensor[:, :, -1])
         # Average the eigenvalues across all lags
-        avg_eigenvalues = np.mean(all_eigenvalues, axis=0)
+        avg_eigenvalues = np.mean(eighens, axis=0)
         
         # Find the maximum of the averaged eigenvalues
         total_spectral_radius = np.max(np.abs(avg_eigenvalues))
